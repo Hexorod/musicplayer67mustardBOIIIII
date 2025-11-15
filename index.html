@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOI MUSIC</title>
+<style>
+  :root {
+    --bg: #0b0b0b;
+    --text: #ffffff;
+    --panel: #1a1a1a;
+    --accent: #4d79ff;
+  }
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 10px;
+    background: var(--panel);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  input, button {
+    padding: 8px;
+    border-radius: 4px;
+    border: none;
+    outline: none;
+    font-size: 14px;
+  }
+  input {
+    width: 60%;
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    margin-left: 5px;
+  }
+  #player-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 20px;
+  }
+  #player {
+    width: 100%;
+    max-width: 600px;
+  }
+  #playlist {
+    margin-top: 20px;
+    background: var(--panel);
+    padding: 10px;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 6px;
+    overflow-y: auto;
+    max-height: 300px;
+  }
+  .song {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #333;
+  }
+  .song img {
+    width: 60px;
+    height: 45px;
+    margin-right: 10px;
+  }
+  .song-info {
+    display: flex;
+    align-items: center;
+    flex: 1;
+  }
+  .song-title {
+    font-weight: bold;
+  }
+  .controls {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <input type="text" id="search" placeholder="Search YouTube songs...">
+  <button id="searchBtn">Search</button>
+</header>
+
+<div id="player-container">
+  <audio id="player" controls></audio>
+  <div class="controls">
+    <button id="prev">⏮️</button>
+    <button id="playPause">⏯️</button>
+    <button id="next">⏭️</button>
+    <button id="shuffle">🔀</button>
+    <button id="repeat">🔁</button>
+  </div>
+</div>
+
+<div id="playlist"></div>
+
+<script>
+const WORKER_URL = "https://boi6741purpleturtle.hexorod0.workers.dev/"; // your Worker URL
+
+let playlist = JSON.parse(localStorage.getItem("boiPlaylist") || "[]");
+let currentIndex = 0;
+let repeat = false;
+let shuffle = false;
+
+const player = document.getElementById("player");
+const playlistDiv = document.getElementById("playlist");
+const searchInput = document.getElementById("search");
+
+function savePlaylist() {
+  localStorage.setItem("boiPlaylist", JSON.stringify(playlist));
+}
+
+function renderPlaylist() {
+  playlistDiv.innerHTML = "";
+  playlist.forEach((song, index) => {
+    const div = document.createElement("div");
+    div.classList.add("song");
+    div.innerHTML = `
+      <div class="song-info">
+        <img src="${song.thumb}" alt="">
+        <div>
+          <div class="song-title">${song.title}</div>
+          <div class="song-channel">${song.channel}</div>
+        </div>
+      </div>
+      <button onclick="playSong(${index})">▶️</button>
+      <button onclick="removeSong(${index})">❌</button>
+    `;
+    playlistDiv.appendChild(div);
+  });
+}
+
+function addToPlaylist(song) {
+  playlist.push(song);
+  savePlaylist();
+  renderPlaylist();
+}
+
+function removeSong(index) {
+  playlist.splice(index, 1);
+  if(currentIndex >= playlist.length) currentIndex = 0;
+  savePlaylist();
+  renderPlaylist();
+}
+
+function playSong(index) {
+  currentIndex = index;
+  player.src = `https://www.youtube.com/watch?v=${playlist[currentIndex].videoId}`;
+  player.play();
+}
+
+function playNext() {
+  if(shuffle) {
+    currentIndex = Math.floor(Math.random() * playlist.length);
+  } else {
+    currentIndex++;
+    if(currentIndex >= playlist.length) {
+      if(repeat) currentIndex = 0;
+      else return;
+    }
+  }
+  playSong(currentIndex);
+}
+
+function playPrev() {
+  currentIndex--;
+  if(currentIndex < 0) currentIndex = repeat ? playlist.length - 1 : 0;
+  playSong(currentIndex);
+}
+
+document.getElementById("playPause").addEventListener("click", () => {
+  if(player.paused) player.play();
+  else player.pause();
+});
+
+document.getElementById("next").addEventListener("click", playNext);
+document.getElementById("prev").addEventListener("click", playPrev);
+document.getElementById("shuffle").addEventListener("click", () => shuffle = !shuffle);
+document.getElementById("repeat").addEventListener("click", () => repeat = !repeat);
+
+player.addEventListener("ended", playNext);
+
+document.getElementById("searchBtn").addEventListener("click", async () => {
+  const query = searchInput.value.trim();
+  if(!query) return;
+  const results = await searchSongs(query);
+  results.forEach(song => addToPlaylist(song));
+});
+
+async function searchSongs(query) {
+  const res = await fetch(`${WORKER_URL}?q=${encodeURIComponent(query)}&max=10`);
+  const data = await res.json();
+  return data.items.map(item => ({
+    videoId: item.id.videoId,
+    title: item.snippet.title,
+    channel: item.snippet.channelTitle,
+    thumb: item.snippet.thumbnails.medium.url
+  }));
+}
+
+// Initial render
+renderPlaylist();
+</script>
+
+</body>
+</html>
