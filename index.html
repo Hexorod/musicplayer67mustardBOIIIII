@@ -785,6 +785,16 @@ window.onload = ()=>{
 </script>
 
 <!-- hidden youtube player container -->
-<div id="yt-player" style="display:none"></div>
+<!-- Replace hidden yt-player div with a visible iframe -->
+<div id="playerContainer" style="display:flex;align-items:center;gap:12px">
+  <iframe id="yt-player" width="0" height="0"
+    style="display:none"
+    src=""
+    frameborder="0"
+    allow="autoplay; encrypted-media"
+    allowfullscreen>
+  </iframe>
+</div>
+
 </body>
 </html>
